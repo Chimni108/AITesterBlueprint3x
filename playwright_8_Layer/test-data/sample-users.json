@@ -1,0 +1,4 @@
+[
+  { "email": "admin@example.com", "role": "admin", "canDelete": true },
+  { "email": "viewer@example.com", "role": "viewer", "canDelete": false }
+]

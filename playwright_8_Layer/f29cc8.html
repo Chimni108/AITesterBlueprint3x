@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CheckoutPage — tests/pages/checkout.page.ts</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin-bottom: 0.25rem; }
+    .path { font-size: 0.82rem; color: #64748b; font-family: monospace; margin-bottom: 2rem; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 1.2rem 1.4rem;
+    }
+    .card h2 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      margin-bottom: 1rem;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th {
+      text-align: left;
+      padding: 0.4rem 0.75rem;
+      background: #0f172a;
+      color: #475569;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid #1e293b;
+    }
+    td {
+      padding: 0.45rem 0.75rem;
+      border-bottom: 1px solid #1e293b;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #1a2740; }
+
+    .name   { color: #7dd3fc; font-family: monospace; }
+    .sel    { color: #86efac; font-family: monospace; font-size: 0.78rem; }
+    .method { color: #c084fc; font-family: monospace; }
+    .param  { color: #94a3b8; font-family: monospace; font-size: 0.78rem; }
+    .desc   { color: #94a3b8; font-size: 0.82rem; }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 0.1rem 0.5rem;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-role  { background: #14532d; color: #4ade80; }
+    .badge-label { background: #1e3a5f; color: #60a5fa; }
+    .badge-text  { background: #3b0764; color: #c084fc; }
+
+    .code-block {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 1.2rem 1.4rem;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.8rem;
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .kw   { color: #c084fc; }
+    .cls  { color: #fbbf24; }
+    .fn   { color: #60a5fa; }
+    .str  { color: #86efac; }
+    .typ  { color: #7dd3fc; }
+    .cmt  { color: #475569; font-style: italic; }
+    .punc { color: #94a3b8; }
+    .num  { color: #fb923c; }
+  </style>
+</head>
+<body>
+
+  <h1>CheckoutPage</h1>
+  <p class="path">tests/pages/checkout.page.ts &nbsp;·&nbsp; extends BasePage &nbsp;·&nbsp; /checkout</p>
+
+  <div class="grid">
+
+    <div class="card">
+      <h2>Locators</h2>
+      <table>
+        <tr><th>Name</th><th>Selector</th><th>Strategy</th></tr>
+        <tr>
+          <td><span class="name">placeOrderButton</span></td>
+          <td><span class="sel">getByRole('button', { name: 'Place Order' })</span></td>
+          <td><span class="badge badge-role">role</span></td>
+        </tr>
+        <tr>
+          <td><span class="name">promoCodeInput</span></td>
+          <td><span class="sel">getByLabel('Promo code')</span></td>
+          <td><span class="badge badge-label">label</span></td>
+        </tr>
+        <tr>
+          <td><span class="name">cardNumberInput</span></td>
+          <td><span class="sel">getByLabel('Card number')</span></td>
+          <td><span class="badge badge-label">label</span></td>
+        </tr>
+        <tr>
+          <td><span class="name">orderSummary</span></td>
+          <td><span class="sel">getByRole('region', { name: 'Order Summary' })</span></td>
+          <td><span class="badge badge-role">role</span></td>
+        </tr>
+        <tr>
+          <td><span class="name">errorBanner</span></td>
+          <td><span class="sel">getByRole('alert')</span></td>
+          <td><span class="badge badge-role">role</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Methods</h2>
+      <table>
+        <tr><th>Method</th><th>Params</th><th>What it does</th></tr>
+        <tr>
+          <td><span class="method">goto()</span></td>
+          <td><span class="param">—</span></td>
+          <td><span class="desc">Navigates to /checkout</span></td>
+        </tr>
+        <tr>
+          <td><span class="method">placeOrder()</span></td>
+          <td><span class="param">—</span></td>
+          <td><span class="desc">Clicks Place Order button</span></td>
+        </tr>
+        <tr>
+          <td><span class="method">applyPromoCode()</span></td>
+          <td><span class="param">code: string</span></td>
+          <td><span class="desc">Fills promo code &amp; clicks Apply</span></td>
+        </tr>
+        <tr>
+          <td><span class="method">fillCardNumber()</span></td>
+          <td><span class="param">cardNumber: string</span></td>
+          <td><span class="desc">Fills card number input</span></td>
+        </tr>
+        <tr>
+          <td><span class="method">expectLoaded()</span></td>
+          <td><span class="param">—</span></td>
+          <td><span class="desc">Asserts order summary is visible</span></td>
+        </tr>
+        <tr>
+          <td><span class="method">expectError()</span></td>
+          <td><span class="param">message: string</span></td>
+          <td><span class="desc">Asserts error banner text</span></td>
+        </tr>
+      </table>
+    </div>
+
+  </div>
+
+  <div class="code-block"><span class="kw">import</span> <span class="punc">{</span> <span class="typ">Page</span><span class="punc">,</span> <span class="typ">Locator</span><span class="punc">,</span> <span class="typ">expect</span> <span class="punc">}</span> <span class="kw">from</span> <span class="str">'@playwright/test'</span><span class="punc">;</span>
+<span class="kw">import</span> <span class="punc">{</span> <span class="typ">BasePage</span> <span class="punc">}</span> <span class="kw">from</span> <span class="str">'./base.page'</span><span class="punc">;</span>
+
+<span class="kw">export class</span> <span class="cls">CheckoutPage</span> <span class="kw">extends</span> <span class="cls">BasePage</span> <span class="punc">{</span>
+  <span class="kw">readonly</span> <span class="name">placeOrderButton</span><span class="punc">:</span> <span class="typ">Locator</span><span class="punc">;</span>
+  <span class="kw">readonly</span> <span class="name">promoCodeInput</span><span class="punc">:</span> <span class="typ">Locator</span><span class="punc">;</span>
+  <span class="kw">readonly</span> <span class="name">cardNumberInput</span><span class="punc">:</span> <span class="typ">Locator</span><span class="punc">;</span>
+  <span class="kw">readonly</span> <span class="name">orderSummary</span><span class="punc">:</span> <span class="typ">Locator</span><span class="punc">;</span>
+  <span class="kw">readonly</span> <span class="name">errorBanner</span><span class="punc">:</span> <span class="typ">Locator</span><span class="punc">;</span>
+
+  <span class="fn">constructor</span><span class="punc">(</span><span class="name">page</span><span class="punc">:</span> <span class="typ">Page</span><span class="punc">) {</span>
+    <span class="kw">super</span><span class="punc">(</span><span class="name">page</span><span class="punc">);</span>
+    <span class="kw">this</span><span class="punc">.</span><span class="name">placeOrderButton</span> <span class="punc">=</span> <span class="name">page</span><span class="punc">.</span><span class="fn">getByRole</span><span class="punc">(</span><span class="str">'button'</span><span class="punc">, {</span> <span class="name">name</span><span class="punc">:</span> <span class="str">'Place Order'</span> <span class="punc">});</span>
+    <span class="kw">this</span><span class="punc">.</span><span class="name">promoCodeInput</span>   <span class="punc">=</span> <span class="name">page</span><span class="punc">.</span><span class="fn">getByLabel</span><span class="punc">(</span><span class="str">'Promo code'</span><span class="punc">);</span>
+    <span class="kw">this</span><span class="punc">.</span><span class="name">cardNumberInput</span>   <span class="punc">=</span> <span class="name">page</span><span class="punc">.</span><span class="fn">getByLabel</span><span class="punc">(</span><span class="str">'Card number'</span><span class="punc">);</span>
+    <span class="kw">this</span><span class="punc">.</span><span class="name">orderSummary</span>      <span class="punc">=</span> <span class="name">page</span><span class="punc">.</span><span class="fn">getByRole</span><span class="punc">(</span><span class="str">'region'</span><span class="punc">, {</span> <span class="name">name</span><span class="punc">:</span> <span class="str">'Order Summary'</span> <span class="punc">});</span>
+    <span class="kw">this</span><span class="punc">.</span><span class="name">errorBanner</span>       <span class="punc">=</span> <span class="name">page</span><span class="punc">.</span><span class="fn">getByRole</span><span class="punc">(</span><span class="str">'alert'</span><span class="punc">);</span>
+  <span class="punc">}</span>
+
+  <span class="kw">async</span> <span class="fn">goto</span><span class="punc">():</span> <span class="typ">Promise</span><span class="punc">&lt;</span><span class="kw">void</span><span class="punc">&gt; {</span>
+    <span class="kw">await</span> <span class="kw">this</span><span class="punc">.</span><span class="fn">navigate</span><span class="punc">(</span><span class="str">'/checkout'</span><span class="punc">);</span>
+  <span class="punc">}</span>
+
+  <span class="kw">async</span> <span class="fn">placeOrder</span><span class="punc">():</span> <span class="typ">Promise</span><span class="punc">&lt;</span><span class="kw">void</span><span class="punc">&gt; {</span>
+    <span class="kw">await</span> <span class="kw">this</span><span class="punc">.</span><span class="name">placeOrderButton</span><span class="punc">.</span><span class="fn">click</span><span class="punc">();</span>
+  <span class="punc">}</span>
+
+  <span class="kw">async</span> <span class="fn">applyPromoCode</span><span class="punc">(</span><span class="name">code</span><span class="punc">:</span> <span class="typ">string</span><span class="punc">):</span> <span class="typ">Promise</span><span class="punc">&lt;</span><span class="kw">void</span><span class="punc">&gt; {</span>
+    <span class="kw">await</span> <span class="kw">this</span><span class="punc">.</span><span class="name">promoCodeInput</span><span class="punc">.</span><span class="fn">fill</span><span class="punc">(</span><span class="name">code</span><span class="punc">);</span>
+    <span class="kw">await</span> <span class="kw">this</span><span class="punc">.</span><span class="name">page</span><span class="punc">.</span><span class="fn">getByRole</span><span class="punc">(</span><span class="str">'button'</span><span class="punc">, {</span> <span class="name">name</span><span class="punc">:</span> <span class="str">'Apply'</span> <span class="punc">}).</span><span class="fn">click</span><span class="punc">();</span>
+  <span class="punc">}</span>
+
+  <span class="kw">async</span> <span class="fn">fillCardNumber</span><span class="punc">(</span><span class="name">cardNumber</span><span class="punc">:</span> <span class="typ">string</span><span class="punc">):</span> <span class="typ">Promise</span><span class="punc">&lt;</span><span class="kw">void</span><span class="punc">&gt; {</span>
+    <span class="kw">await</span> <span class="kw">this</span><span class="punc">.</span><span class="name">cardNumberInput</span><span class="punc">.</span><span class="fn">fill</span><span class="punc">(</span><span class="name">cardNumber</span><span class="punc">);</span>
+  <span class="punc">}</span>
+
+  <span class="kw">async</span> <span class="fn">expectLoaded</span><span class="punc">():</span> <span class="typ">Promise</span><span class="punc">&lt;</span><span class="kw">void</span><span class="punc">&gt; {</span>
+    <span class="kw">await</span> <span class="fn">expect</span><span class="punc">(</span><span class="kw">this</span><span class="punc">.</span><span class="name">orderSummary</span><span class="punc">).</span><span class="fn">toBeVisible</span><span class="punc">();</span>
+  <span class="punc">}</span>
+
+  <span class="kw">async</span> <span class="fn">expectError</span><span class="punc">(</span><span class="name">message</span><span class="punc">:</span> <span class="typ">string</span><span class="punc">):</span> <span class="typ">Promise</span><span class="punc">&lt;</span><span class="kw">void</span><span class="punc">&gt; {</span>
+    <span class="kw">await</span> <span class="fn">expect</span><span class="punc">(</span><span class="kw">this</span><span class="punc">.</span><span class="name">errorBanner</span><span class="punc">).</span><span class="fn">toBeVisible</span><span class="punc">();</span>
+    <span class="kw">await</span> <span class="fn">expect</span><span class="punc">(</span><span class="kw">this</span><span class="punc">.</span><span class="name">errorBanner</span><span class="punc">).</span><span class="fn">toHaveText</span><span class="punc">(</span><span class="name">message</span><span class="punc">);</span>
+  <span class="punc">}</span>
+<span class="punc">}</span></div>
+
+</body>
+</html>
