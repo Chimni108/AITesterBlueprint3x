@@ -1,0 +1,58 @@
+name: RestFul Booker API Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: Chapter2/Project3/RestfulBookerAPI
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium
+
+      - name: Run API tests
+        run: pytest tests/
+        continue-on-error: true
+
+      - name: Upload HTML report as artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-test-report-run-${{ github.run_number }}
+          path: Chapter2/Project3/RestfulBookerAPI/reports/
+          retention-days: 30
+
+      - name: Commit test report to repository
+        if: always()
+        run: |
+          cd ${{ github.workspace }}
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Chapter2/Project3/RestfulBookerAPI/reports/
+          git diff --staged --quiet || git commit -m "ci: test report for run #${{ github.run_number }} on ${{ github.ref_name }} [skip ci]"
+          git push
