@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/jira/:path*",
+      "destination": "https://testlearn.atlassian.net/:path*"
+    }
+  ]
+}
