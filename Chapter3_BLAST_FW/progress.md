@@ -31,3 +31,4 @@
 | `pip: command not found` | Python not installed | Used Node.js for handshake scripts |
 | `python3: command not found` | Python absent on machine | Node.js fallback documented in findings.md |
 | `TypeError: Failed to fetch` (JIRA) | JIRA Cloud blocks CORS from browser origins — no `Access-Control-Allow-Origin` header returned for localhost | Added Vite proxy in `vite.config.js`: browser → `/api/jira/` → Vite → JIRA Cloud. Patched `jiraService.js` and `jiraCommentService.js` to use proxy path. |
+| App generates test cases instead of a test plan | `O — Output` section of GROQ system prompt said "output one Markdown table only" — model followed instructions literally | Rewrote `O` section to specify a complete 8-section test plan document. Updated `groqService.js` SYSTEM_PROMPT and user prompt. Synced `gemini.md` canonical prompt. |
