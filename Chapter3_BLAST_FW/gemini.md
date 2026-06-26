@@ -185,6 +185,8 @@ Numbered steps inside the Test Steps column.
 - CORS: JIRA Cloud BLOCKS browser-direct API calls from external origins (no ACAO header).
   All JIRA calls MUST go through the Vite proxy (`/api/jira/` prefix).
   Direct `fetch(config.baseUrl + ...)` from the browser will always fail.
+- XSRF: JIRA Cloud requires `'X-Atlassian-Token': 'no-check'` header on ALL write operations
+  (POST/PUT/DELETE). Without it, server returns `403 — XSRF check failed` regardless of auth.
 
 ---
 
@@ -196,3 +198,4 @@ Numbered steps inside the Test Steps column.
 | 2026-06-21 | Schema APPROVED, behavioral rules LOCKED | Blueprint Q1-Q5 answered |
 | 2026-06-26 | CORS fix: Vite proxy added, jiraService + jiraCommentService patched | JIRA Cloud blocks browser-direct calls |
 | 2026-06-26 | System prompt O section corrected: output is full 8-section test plan, not table-only | App was generating test cases instead of a test plan |
+| 2026-06-26 | `X-Atlassian-Token: no-check` added to jiraCommentService.js POST headers | JIRA Cloud XSRF protection returns 403 on all write operations without this header |

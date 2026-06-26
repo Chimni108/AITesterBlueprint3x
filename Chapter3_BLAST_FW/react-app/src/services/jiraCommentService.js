@@ -37,6 +37,7 @@ export async function postTestPlanToJira(jiraId, testPlan) {
       Authorization: `Basic ${creds}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      'X-Atlassian-Token': 'no-check',
     },
     body: JSON.stringify({ body: adfBody }),
   })

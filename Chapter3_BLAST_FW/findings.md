@@ -59,3 +59,15 @@ Must convert Markdown → ADF before posting.
 ### 5. GROQ Model Confirmed
 `openai/gpt-oss-120b` is live and responsive on `https://api.groq.com/openai/v1`.
 `temperature: 0` enforced for deterministic output.
+
+### 6. JIRA Cloud XSRF Protection on Write Operations
+JIRA Cloud applies XSRF (Cross-Site Request Forgery) protection to all write operations
+(POST, PUT, DELETE). Even with valid Basic Auth, the server returns:
+`403 — XSRF check failed`
+
+**Fix applied:** Add header `'X-Atlassian-Token': 'no-check'` to every JIRA write request.
+This is the official Atlassian-documented bypass for REST API clients that cannot handle
+cookies-based XSRF tokens.
+
+**Affected file patched:** `jiraCommentService.js` — added to POST /comment headers.
+**Rule:** All future JIRA POST/PUT/DELETE calls must include `'X-Atlassian-Token': 'no-check'`.
