@@ -149,7 +149,9 @@ Technical, precise, enterprise-grade. Formal with concise bullets in test steps.
 - JIRA ADF description must be converted to plain text before passing to GROQ.
 - GROQ `temperature` is fixed at `0` — never configurable by user.
 - JIRA comment is posted as ADF (Atlassian Document Format), not plain Markdown.
-- CORS: JIRA Cloud supports browser-direct auth API calls with Basic Auth header.
+- CORS: JIRA Cloud BLOCKS browser-direct API calls from external origins (no ACAO header).
+  All JIRA calls MUST go through the Vite proxy (`/api/jira/` prefix).
+  Direct `fetch(config.baseUrl + ...)` from the browser will always fail.
 
 ---
 

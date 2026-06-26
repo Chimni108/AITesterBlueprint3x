@@ -31,7 +31,7 @@ export async function postTestPlanToJira(jiraId, testPlan) {
   const creds = btoa(`${config.email}:${config.token}`)
   const adfBody = markdownToAdf(testPlan.rawMarkdown)
 
-  const response = await fetch(`${config.baseUrl}/rest/api/3/issue/${jiraId}/comment`, {
+  const response = await fetch(`/api/jira/rest/api/3/issue/${jiraId}/comment`, {
     method: 'POST',
     headers: {
       Authorization: `Basic ${creds}`,

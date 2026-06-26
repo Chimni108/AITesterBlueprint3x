@@ -26,7 +26,8 @@
 - React app being scaffolded
 
 ### Errors Encountered
-| Error | Resolution |
-|-------|-----------|
-| `pip: command not found` | Python not installed. Used Node.js for handshake. |
-| `python3: command not found` | Confirmed Python absent. Node.js fallback documented. |
+| Error | Root Cause | Resolution |
+|-------|-----------|------------|
+| `pip: command not found` | Python not installed | Used Node.js for handshake scripts |
+| `python3: command not found` | Python absent on machine | Node.js fallback documented in findings.md |
+| `TypeError: Failed to fetch` (JIRA) | JIRA Cloud blocks CORS from browser origins — no `Access-Control-Allow-Origin` header returned for localhost | Added Vite proxy in `vite.config.js`: browser → `/api/jira/` → Vite → JIRA Cloud. Patched `jiraService.js` and `jiraCommentService.js` to use proxy path. |

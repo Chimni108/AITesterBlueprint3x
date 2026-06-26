@@ -37,9 +37,20 @@ Node.js 20.18.0 is available. All handshake scripts written in Node.js instead.
 Existing `tools/verify_jira.py` and `tools/verify_groq.py` are kept as reference but
 the React app uses browser `fetch()` directly.
 
-### 3. JIRA Cloud CORS — Direct Browser Calls Work
-Atlassian Cloud APIs (`*.atlassian.net`) support CORS for authenticated browser
-requests using `Authorization: Basic <base64>` header. No proxy needed.
+### 3. JIRA Cloud CORS — ❌ DIRECT BROWSER CALLS BLOCKED (CORRECTED)
+Atlassian Cloud APIs (`*.atlassian.net`) do NOT return `Access-Control-Allow-Origin`
+for requests from localhost or external browser origins. The browser throws
+`TypeError: Failed to fetch` before the request even reaches JIRA.
+
+**Fix applied:** Vite dev-server proxy. Browser calls `/api/jira/...` on localhost:5173.
+Vite strips the prefix and forwards the request server-side to the JIRA base URL.
+No CORS issue because server-to-server calls are not subject to browser CORS policy.
+
+**Proxy config:** `vite.config.js` reads `VITE_JIRA_BASE_URL` from `.env` as the target.
+**Affected files patched:** `vite.config.js`, `jiraService.js`, `jiraCommentService.js`
+
+**Production note:** Vite proxy only works in `npm run dev`. Production deployment
+requires a serverless function (Netlify/Vercel) or a backend proxy.
 
 ### 4. JIRA Comment Format
 `POST /rest/api/3/issue/{id}/comment` requires ADF body — not plain Markdown.

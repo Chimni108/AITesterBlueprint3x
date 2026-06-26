@@ -29,7 +29,7 @@ export async function fetchJiraTicket(jiraId) {
   }
 
   const creds = btoa(`${config.email}:${config.token}`)
-  const url = `${config.baseUrl}/rest/api/3/issue/${jiraId}`
+  const url = `/api/jira/rest/api/3/issue/${jiraId}`
 
   const response = await fetch(url, {
     headers: {
