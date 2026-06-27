@@ -212,6 +212,53 @@ body {
 .markdown-body tr:nth-child(even) td { background: #12161f; }
 .markdown-body tr:hover td { background: #1e2535; }
 
+/* ─── Strategy Display ──────────────────────────────────── */
+.strategy-display { display: flex; flex-direction: column; gap: 0; }
+
+.strategy-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 16px 0 0;
+  border-bottom: 1px solid #2d3748;
+  margin-bottom: 20px;
+}
+
+.strategy-tab {
+  padding: 9px 20px;
+  border: 1px solid #2d3748;
+  border-bottom: none;
+  background: #0f1117;
+  color: #718096;
+  border-radius: 7px 7px 0 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+  position: relative;
+  bottom: -1px;
+}
+.strategy-tab:hover { background: #1a2035; color: #e2e8f0; }
+.strategy-tab.active {
+  background: #161b27;
+  color: #fff;
+  border-color: #2d3748;
+  border-bottom-color: #161b27;
+}
+
+.strategy-panel {
+  background: #161b27;
+  border: 1px solid #2d3748;
+  border-radius: 0 10px 10px 10px;
+  overflow: hidden;
+}
+
+.panel-label {
+  font-weight: 700;
+  font-size: 13px;
+  color: #e2e8f0;
+  margin-right: 8px;
+}
+
 /* ─── Spinner ───────────────────────────────────────────── */
 .loading-text { display: flex; align-items: center; gap: 8px; }
 .spinner {
