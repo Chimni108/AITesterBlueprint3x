@@ -1,26 +1,34 @@
 export default async function handler(req, res) {
-  const pathSegments = req.query.path
-  const jiraPath = Array.isArray(pathSegments) ? pathSegments.join('/') : (pathSegments || '')
+  try {
+    // req.query.path holds the catch-all segments: ['rest','api','3','issue','SCRUM-5']
+    const pathSegments = req.query.path
+    const jiraPath = Array.isArray(pathSegments)
+      ? pathSegments.join('/')
+      : (pathSegments || '')
 
-  // Preserve query string from original request
-  const reqUrl = new URL(req.url, 'http://placeholder')
-  const jiraUrl = `https://testlearn.atlassian.net/${jiraPath}${reqUrl.search}`
+    // Build JIRA query string from req.query, excluding the 'path' route parameter
+    // (Vercel injects route params into req.query alongside real query params)
+    const { path: _ignored, ...realQueryParams } = req.query
+    const qs = new URLSearchParams(realQueryParams).toString()
 
-  const fetchOptions = {
-    method: req.method,
-    headers: {
-      Authorization: req.headers['authorization'] || '',
+    const jiraUrl = `https://testlearn.atlassian.net/${jiraPath}${qs ? '?' + qs : ''}`
+
+    const headers = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       'X-Atlassian-Token': 'no-check',
-    },
-  }
+    }
 
-  if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
-    fetchOptions.body = JSON.stringify(req.body)
-  }
+    if (req.headers.authorization) {
+      headers.Authorization = req.headers.authorization
+    }
 
-  try {
+    const fetchOptions = { method: req.method, headers }
+
+    if (!['GET', 'HEAD'].includes(req.method) && req.body) {
+      fetchOptions.body = JSON.stringify(req.body)
+    }
+
     const response = await fetch(jiraUrl, fetchOptions)
     const text = await response.text()
     const contentType = response.headers.get('content-type')
