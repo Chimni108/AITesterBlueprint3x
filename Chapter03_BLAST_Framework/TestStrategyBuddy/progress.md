@@ -1,0 +1,15 @@
+# Progress Log
+
+## 2026-06-28
+- Started new B.L.A.S.T. cycle for `TestStrategyBuddy` — a separate app from the existing Test Plan Generator. New scope: generate a Test Strategy + 40 test cases (Login + Dashboard pages) for SCRUM-6, grounded in the attached `Test Strategy for Ecommerce Website.docx`, write the test cases back to JIRA, and return the list of created JIRA IDs. Two-tab UI (Test Strategy / Test Case Generator) with dark+light mode. Deploy target: Vercel project `teststrategy_testcase_generator`.
+- Extracted text from the docx (binary, parsed via its document.xml) — see findings.md.
+- Could not find any "RICEPOT Framework" reference in the repo — raised as a discovery question rather than guessed.
+- Per protocol, halting before writing any tools/ code until Discovery Q&A is answered and Data Schema is approved.
+- Found and read `RICE_POT.md` plus `Chapter2/Project1_TC_Gen/RICEPOT_FRAMEWORK/blank-template-rice-pot.md` and `RICE-POT-TestCase-Prompt.md.pdf` — confirmed RICE-POT is a 7-part prompt-engineering meta-structure (Role/Instructions/Context/Example/Parameters/Output/Tone), not a test-case-content template. Used the worked PDF example (VWO test case prompt) as the concrete model for this app's RICE-POT test-case prompt.
+- Discovery Q&A completed: write-back = one Sub-task per test case parented to the source issue; split = 20 Login / 20 Dashboard; JIRA issue type for write-back = Sub-task under the source issue (e.g. SCRUM-6).
+- Defined full Data Schema, Behavioral Rules, and Architectural Invariants in `gemini.md`. Blueprint approved by user.
+- Built: `tools/adf.py`, `tools/jira_client.py` (fetch), `tools/jira_writer.py` (write-back Sub-task creation), `tools/groq_strategy_client.py` (Test Strategy generation), `tools/groq_testcase_client.py` (RICE-POT 40-test-case generation), Flask navigation layer `api/index.py` (`/api/strategy/create`, `/api/testcases/create`, `/api/testcases/publish`), architecture SOPs (`jira-fetch-sop.md`, `jira-writeback-sop.md`, `groq-generation-sop.md`), and a two-tab React UI (Test Strategy / Test Case Generator) with a persisted dark/light theme toggle.
+- Verified locally: Flask dev server (port 3002) + Vite dev server with proxy, confirmed `/api/strategy/create` returns the expected validation error with an empty payload.
+- Deployed to Vercel: linked + deployed as `nam-qa/teststrategy-testcase-generator` (Vercel rejects underscores/uppercase, so `teststrategy_testcase_generator` → `teststrategy-testcase-generator`), live at https://teststrategy-testcase-generator.vercel.app. Verified the live `/api/strategy/create` route responds correctly.
+- v1 status: BUILT AND DEPLOYED. Not yet committed/pushed to GitHub — pending explicit user request.
+- Self-Annealing repair: live test case generation failed with GROQ 413 `rate_limit_exceeded` (8965 tokens requested vs. 8000 TPM limit on the free `on_demand` tier for `openai/gpt-oss-120b`). Reduced test case count from 40 (20 Login/20 Dashboard) to 20 (10/10) and `max_tokens` from 8000 to 3500 in `groq_testcase_client.py`; updated UI copy and `gemini.md`/SOP accordingly. Redeployed to Vercel.

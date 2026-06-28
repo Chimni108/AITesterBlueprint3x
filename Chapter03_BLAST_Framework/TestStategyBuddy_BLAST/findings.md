@@ -1,0 +1,9 @@
+# Findings
+
+## 2026-06-28
+- This is a sibling project to `Chapter03_BLAST_Framework/TestStrategyBuddy/` (the RICE-POT version, deployed at https://teststrategy-testcase-generator.vercel.app). This build must use **only the plain B.L.A.S.T.md framework for prompts — explicitly no RICE-POT structure**, per the user's instruction.
+- Reusing the same `Test Strategy for Ecommerce Website.docx` reference document (same content as extracted previously): Objective, Scope (in/out), Focus Areas, Approach, Deliverables, Team & Schedule, Entry/Exit Criteria, Risks for an ecommerce website test strategy.
+- Reusing prior, already-proven research: JIRA Cloud REST API v3 (fetch via `GET /rest/api/3/issue/{key}`, ADF parsing, Basic Auth), JIRA issue creation (write-back) via `POST /rest/api/3/issue`, GROQ `openai/gpt-oss-120b` via OpenAI-compatible endpoint with `response_format: json_object`.
+- Known constraint carried over from the sibling project: GROQ's free-tier `on_demand` service tier caps `openai/gpt-oss-120b` at 8000 tokens-per-minute. The sibling project had to reduce its test case count from 40 (20/20) to 20 (10/10) and `max_tokens` from 8000 to 3500 to avoid a 413 `rate_limit_exceeded`. This project's test case prompt will be designed with that same cap in mind from the start.
+- Open question raised as discovery rather than assumed: `objective.md` references fetching "SCRUM-5 and SCRUM-6" as fixed examples, but the user's latest message says "given jira Id" (singular, generic) — ambiguous whether this app takes one user-entered issue key per run (like the sibling app) or always fetches both SCRUM-5 and SCRUM-6 together.
+- Resolved: user confirmed single user-entered issue key per run, and 20 test cases (10 Login/10 Dashboard). Build completed and deployed to https://teststrategy-testcase-generator-bla.vercel.app.
