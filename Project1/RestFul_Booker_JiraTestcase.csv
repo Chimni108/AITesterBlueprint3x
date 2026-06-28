@@ -1,0 +1,17 @@
+TestCase_#,Operation,Test Type(s),Description,Example Test Case,Priority
+TC_01_01,Create (POST),"Functional, Data Validation, Security",Verify successful booking creation with valid data.,"POST /bookings with valid guest details, date, room type – verify booking created.",High
+TC_01_02,,Error Handling,"Test invalid input – missing fields, incorrect data types.",POST /bookings with missing ‘guest name’ field – check for appropriate error code.,High
+TC_02_01,Read (GET),"Functional, Performance",Retrieve booking information by various criteria.,GET /bookings/{bookingId} - Verify correct booking details are returned.,High
+TC_02_02,,Boundary Testing,"Test with edge date ranges, very long names.",GET /bookings?startDate=2024-01-01&endDate=2024-12-31 – check for data integrity.,Medium
+TC_03_01,Update (PUT),"Functional, Data Validation, Security",Modify existing bookings with valid updates.,PUT /bookings/{bookingId} - Update guest name and room type – verify changes saved.,High
+TC_03_02,,Error Handling,"Test invalid update requests (e.g., incorrect booking ID).",PUT /bookings/invalidBookingID – check for appropriate error response.,High
+TC_04_01,Delete (DELETE),"Functional, Security",Remove bookings by valid IDs.,DELETE /bookings/{bookingId} - Verify booking is removed from the system.,Medium
+TC_04_02,,Error Handling,Test deleting non-existent bookings.,DELETE /bookings/invalidBookingID – check for appropriate error response.,Low
+TC_05,Boundary Testing,,Testing extreme values and limits of input parameters.,"Test with minimum and maximum date ranges, very long names or descriptions.",High
+TC_06,Concurrency Testing,,Simulate multiple users accessing/modifying bookings simultaneously.,Multiple users attempting to book the same room concurrently – verify data integrity.,Medium
+TC_07,Data Validation,"Functional, Data Validation",Ensure API correctly validates input data types and formats.,POST /bookings with invalid date format - check for error handling.,High
+TC_08,Authentication & Authorization,Security,Verify user authentication and access control to protected endpoints.,Attempt to access a booking without valid credentials – verify access denied.,High
+TC_09,Error Handling,"Functional, Error Handling",Test API's response to invalid requests or unexpected errors.,Simulate server error during booking creation - check for appropriate error message.,High
+TC_10,Security Testing,Security,"Assess vulnerabilities like SQL injection, XSS (if applicable).",Attempt to inject malicious code into input fields – verify protection mechanisms.,High
+TC_11,Performance Testing,Performance,Measure API response times under various load conditions.,Simulate 100 concurrent users accessing booking data - measure response time.,Medium
+TC_12,Integration Testing,"Functional, Integration",Verify interactions between different API endpoints and services.,Test the interaction between booking creation and room availability checks.,Medium
