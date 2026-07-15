@@ -1,0 +1,16 @@
+# PyTorch's own index is added as an *extra* source (PyPI is still used for
+# everything else) so this resolves a CPU-only torch build in one shot. That
+# also happens to dodge a Windows-only bug where newer torch releases bundle
+# a third-party license file tree so deep it exceeds MAX_PATH in nested
+# project folders - see README Troubleshooting if you still hit it.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1
+
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-dotenv>=1.0
+pypdf>=5.0
+chromadb>=1.0
+sentence-transformers>=3.0
+einops>=0.8
+groq>=0.11

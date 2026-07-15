@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip --version)",
+      "Bash(where winget *)",
+      "Bash(winget install *)",
+      "Bash(\"C:/Users/nammu/AppData/Local/Programs/Python/Python312/python.exe\" --version)",
+      "Bash(py --version)"
+    ]
+  }
+}

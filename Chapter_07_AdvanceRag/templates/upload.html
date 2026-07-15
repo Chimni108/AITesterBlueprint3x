@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block page_title %}Upload &middot; Advanced RAG Explorer{% endblock %}
+
+{% block sidebar %}
+  <h3 style="margin-bottom:1rem;">Ingest steps</h3>
+  <ul class="tracker">
+    <li class="{{ 'done' if path else 'active' }}">
+      <div class="stage-name">1. Choose a file</div>
+      <div class="stage-detail">CSV, XLSX, or the bundled VWO dataset</div>
+    </li>
+    <li class="{{ 'done' if info else ('active' if path else '') }}">
+      <div class="stage-name">2. Preview</div>
+      <div class="stage-detail">Row count, columns, dtypes</div>
+    </li>
+    <li class="{{ 'active' if info else '' }}">
+      <div class="stage-name">3. Pick columns</div>
+      <div class="stage-detail">Text columns get embedded; metadata columns become filterable payload</div>
+    </li>
+    <li>
+      <div class="stage-name">4. Start ingestion</div>
+      <div class="stage-detail">Live stage tracker on the next page</div>
+    </li>
+  </ul>
+{% endblock %}
+
+{% block content %}
+  <h1>Upload a dataset</h1>
+  <p class="muted">Bring your own CSV/XLSX of test cases, or use the bundled 5,000-row VWO corpus.</p>
+
+  <div class="card">
+    <h3>File</h3>
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data" style="display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap;">
+        <input type="file" name="file" accept=".csv,.xlsx,.xls">
+        <button type="submit" class="btn">Upload &amp; preview</button>
+      </form>
+      <form method="post" style="margin-top:0.75rem;">
+        <input type="hidden" name="use_default" value="1">
+        <button type="submit" class="btn btn-ghost">Use bundled dataset ({{ default_dataset_path }})</button>
+      </form>
+    </div>
+  </div>
+
+  {% if info %}
+    <div class="stat-row">
+      <div class="stat-tile"><div class="stat-value">{{ info.row_count }}</div><div class="stat-label">rows</div></div>
+      <div class="stat-tile"><div class="stat-value">{{ info.columns|length }}</div><div class="stat-label">columns</div></div>
+      <div class="stat-tile"><div class="stat-value">{{ path.split('/')[-1].split('\\')[-1] }}</div><div class="stat-label">source file</div></div>
+    </div>
+
+    <div class="card">
+      <h3>Preview (first 5 rows)</h3>
+      <div class="card-body table-scroll">
+        <table>
+          <thead>
+            <tr>{% for col in info.columns %}<th>{{ col }} <span class="muted">({{ info.dtypes[col] }})</span></th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for row in info.preview_rows %}
+              <tr>{% for col in info.columns %}<td>{{ (row[col] | string)[:120] }}</td>{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Columns to index</h3>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('ingest_start') }}">
+          <div class="field">
+            <label>Text columns (concatenated &amp; embedded as the document)</label>
+            <div class="checkbox-grid">
+              {% for col in info.columns %}
+                <label class="checkbox-chip">
+                  <input type="checkbox" name="text_cols" value="{{ col }}" {{ 'checked' if col in default_text_cols }}>
+                  {{ col }}
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="field">
+            <label>Metadata columns (kept in Qdrant payload for filtering)</label>
+            <div class="checkbox-grid">
+              {% for col in info.columns %}
+                <label class="checkbox-chip">
+                  <input type="checkbox" name="meta_cols" value="{{ col }}" {{ 'checked' if col in default_meta_cols }}>
+                  {{ col }}
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+          <button type="submit" class="btn">Start ingestion &rarr;</button>
+        </form>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

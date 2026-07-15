@@ -22,6 +22,9 @@ node_modules/
 .env
 *.env.local
 
+# Claude Code local (per-developer) settings
+.claude/settings.local.json
+
 # Logs
 *.log
 

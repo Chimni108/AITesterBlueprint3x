@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block page_title %}Chunks &middot; Advanced RAG Explorer{% endblock %}
+
+{% block sidebar %}
+  <h3 style="margin-bottom:1rem;">Corpus</h3>
+  <div class="stat-tile" style="margin-bottom:1.25rem;">
+    <div class="stat-value">{{ total }}</div>
+    <div class="stat-label">chunks matching current filters</div>
+  </div>
+
+  <form method="get" action="{{ url_for('chunks_view') }}">
+    <div class="field">
+      <label for="search">Search (substring)</label>
+      <input type="search" id="search" name="search" value="{{ search }}" placeholder="e.g. redirect loop">
+    </div>
+    <div class="field">
+      <label for="priority">Priority</label>
+      <select id="priority" name="priority">
+        <option value="">All</option>
+        {% for p in priorities %}
+          <option value="{{ p.value }}" {{ 'selected' if p.value == priority }}>{{ p.value }} ({{ p.count }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="module">Module</label>
+      <select id="module" name="module">
+        <option value="">All</option>
+        {% for m in modules %}
+          <option value="{{ m.value }}" {{ 'selected' if m.value == module }}>{{ m.value }} ({{ m.count }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="jira_id">JIRA ID</label>
+      <input type="text" id="jira_id" name="jira_id" value="{{ jira_id }}" placeholder="VWO-1234">
+    </div>
+    <button type="submit" class="btn">Apply filters</button>
+    {% if search or priority or module or jira_id %}
+      <a class="btn btn-ghost" style="margin-top:0.5rem; display:block; text-align:center;" href="{{ url_for('chunks_view') }}">Clear</a>
+    {% endif %}
+  </form>
+{% endblock %}
+
+{% block content %}
+  <h1>Chunk explorer</h1>
+  <p class="muted">Every chunk currently indexed in the <code>{{ modules and "vwo_test_cases" or "vwo_test_cases" }}</code> Qdrant collection. Chunks used in the most recent chat answer are outlined in coral.</p>
+
+  {% if not exists %}
+    <div class="empty-state">
+      <p>Nothing has been ingested yet.</p>
+      <a class="btn" href="{{ url_for('upload_view') }}">Go to Upload</a>
+    </div>
+  {% elif chunk_cards|length == 0 %}
+    <div class="empty-state">
+      <p>No chunks match these filters.</p>
+      <a class="btn btn-ghost" href="{{ url_for('chunks_view') }}">Clear filters</a>
+    </div>
+  {% else %}
+    {% for c in chunk_cards %}
+      <div class="card chunk-card {{ 'highlighted' if c.highlighted }}">
+        <h3>
+          Chunk
+          {% if c.highlighted %}<span class="badge">used in last answer</span>{% endif %}
+        </h3>
+        <div class="card-body">
+          <div class="chunk-meta">
+            {% for key, value in c.payload.items() if key not in ('text',) %}
+              <span class="badge">{{ key }}: {{ value }}</span>
+            {% endfor %}
+          </div>
+          <div class="chunk-text">{{ c.payload.get('text', '') }}</div>
+
+          <div class="compare-grid" style="margin-top:0.75rem;">
+            <div>
+              <h4>Dense preview (first 8 dims)</h4>
+              <div class="dense-bars" style="height:32px;">
+                {% set max_abs = (c.dense_preview | map('abs') | list + [0.001]) | max %}
+                {% for v in c.dense_preview %}
+                  <span style="height:{{ [4, ((v|abs) / max_abs * 100)] | max }}%" title="{{ '%.4f' % v }}"></span>
+                {% endfor %}
+              </div>
+            </div>
+            <div>
+              <h4>Sparse top-5 tokens</h4>
+              <div class="token-pills">
+                {% for tok, weight in c.sparse_preview %}
+                  <span class="token-pill">{{ tok }} &middot; {{ '%.2f' % weight }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+    <div class="pagination">
+      {% if page > 1 %}
+        <a href="{{ url_for('chunks_view', page=page-1, search=search, priority=priority, module=module, jira_id=jira_id) }}">&larr; Prev</a>
+      {% endif %}
+      <span class="current">Page {{ page }} / {{ total_pages }}</span>
+      {% if page < total_pages %}
+        <a href="{{ url_for('chunks_view', page=page+1, search=search, priority=priority, module=module, jira_id=jira_id) }}">Next &rarr;</a>
+      {% endif %}
+    </div>
+  {% endif %}
+{% endblock %}

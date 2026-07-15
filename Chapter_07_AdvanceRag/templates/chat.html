@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block page_title %}Chat &middot; Advanced RAG Explorer{% endblock %}
+
+{% block sidebar %}
+  <h3 style="margin-bottom:1rem;">Stage 2 &middot; Chat</h3>
+  <ul class="tracker" id="tracker">
+    <li data-stage="rewrite"><div class="stage-name">Rewrite</div><div class="stage-detail" data-role="detail">Idle</div></li>
+    <li data-stage="embed"><div class="stage-name">Embed</div><div class="stage-detail" data-role="detail">&nbsp;</div></li>
+    <li data-stage="search"><div class="stage-name">Hybrid search + RRF</div><div class="stage-detail" data-role="detail">&nbsp;</div></li>
+    <li data-stage="rerank"><div class="stage-name">Re-rank</div><div class="stage-detail" data-role="detail">&nbsp;</div></li>
+    <li data-stage="generate"><div class="stage-name">Generate</div><div class="stage-detail" data-role="detail">&nbsp;</div></li>
+  </ul>
+
+  <h3 style="margin:1.5rem 0 0.75rem;">Tunables</h3>
+  <ul class="tunables-list">
+    <li><span>CHUNK_SIZE</span><span>{{ tunables.CHUNK_SIZE }}</span></li>
+    <li><span>CHUNK_OVERLAP</span><span>{{ tunables.CHUNK_OVERLAP }}</span></li>
+    <li><span>TOP_N_HYBRID</span><span>{{ tunables.TOP_N_HYBRID }}</span></li>
+    <li><span>TOP_K_RERANK</span><span>{{ tunables.TOP_K_RERANK }}</span></li>
+    <li><span>RRF_K</span><span>{{ tunables.RRF_K }}</span></li>
+    <li><span>REWRITE_ENABLED</span><span>{{ tunables.REWRITE_ENABLED }}</span></li>
+  </ul>
+{% endblock %}
+
+{% block content %}
+  <h1>Chat</h1>
+  <p class="muted">Ask a question about the test suite, or say something like <em>"create a new test case for JIRA VWO-1234"</em> to switch to Generate mode.</p>
+
+  {% if not has_data %}
+    <div class="empty-state">
+      <p>No data has been ingested yet.</p>
+      <a class="btn" href="{{ url_for('upload_view') }}">Go to Upload</a>
+    </div>
+  {% else %}
+    <div class="chat-thread" id="thread"></div>
+    <form class="chat-input-row" id="chat-form">
+      <input type="text" id="question" name="question" placeholder="e.g. What test cases cover redirect loop detection?" autocomplete="off" required>
+      <button type="submit" class="btn" id="ask-btn">Ask</button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  {% if has_data %}
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+  {% endif %}
+{% endblock %}

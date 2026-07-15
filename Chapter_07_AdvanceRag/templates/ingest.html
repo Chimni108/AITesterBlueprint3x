@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block page_title %}Ingest &middot; Advanced RAG Explorer{% endblock %}
+
+{% block sidebar %}
+  <h3 style="margin-bottom:1rem;">Stage 1 &middot; Ingest</h3>
+  <ul class="tracker" id="tracker">
+    <li data-stage="read"><div class="stage-name">Read</div><div class="stage-detail" data-role="detail">Waiting to start&hellip;</div></li>
+    <li data-stage="build_docs"><div class="stage-name">Build docs</div><div class="stage-detail" data-role="detail">&nbsp;</div></li>
+    <li data-stage="chunk"><div class="stage-name">Chunk</div><div class="stage-detail" data-role="detail">&nbsp;</div></li>
+    <li data-stage="embed"><div class="stage-name">Embed (bge-m3)</div><div class="stage-detail" data-role="detail">&nbsp;</div></li>
+    <li data-stage="index"><div class="stage-name">Index (Qdrant)</div><div class="stage-detail" data-role="detail">&nbsp;</div></li>
+  </ul>
+
+  {% if ready %}
+    <div class="muted" style="margin-top:1.5rem;">
+      <strong>Source:</strong> {{ path.split('/')[-1].split('\\')[-1] }}<br>
+      <strong>Text cols:</strong> {{ text_cols|join(', ') }}<br>
+      <strong>Meta cols:</strong> {{ meta_cols|join(', ') }}
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <h1>Live ingestion</h1>
+  <p class="muted">First run downloads/loads bge-m3 (~2.3&nbsp;GB) - this can take a few minutes. Subsequent runs are fast.</p>
+
+  {% if not ready %}
+    <div class="empty-state">
+      <p>No file/columns selected yet.</p>
+      <a class="btn" href="{{ url_for('upload_view') }}">Go to Upload</a>
+    </div>
+  {% else %}
+    <div id="card-error" class="card msg-error" style="display:none;"></div>
+    <div id="card-read" class="card"><h3>Read</h3><div class="card-body muted">Idle</div></div>
+    <div id="card-build_docs" class="card"><h3>Build docs</h3><div class="card-body muted">Idle</div></div>
+    <div id="card-chunk" class="card"><h3>Chunk</h3><div class="card-body muted">Idle</div></div>
+    <div id="card-embed" class="card"><h3>Embed</h3><div class="card-body muted">Idle</div></div>
+    <div id="card-index" class="card"><h3>Index</h3><div class="card-body muted">Idle</div></div>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  {% if ready %}
+    <script src="{{ url_for('static', filename='js/ingest.js') }}"></script>
+  {% endif %}
+{% endblock %}

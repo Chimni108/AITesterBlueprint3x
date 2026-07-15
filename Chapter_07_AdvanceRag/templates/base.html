@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block page_title %}Advanced RAG Explorer{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <span class="brand-dot"></span>
+      <span>Advanced RAG Explorer</span>
+      <span class="brand-sub">VWO test case corpus &middot; hybrid retrieval</span>
+    </div>
+    <nav class="topnav">
+      <a href="{{ url_for('upload_view') }}" class="{{ 'active' if request.endpoint == 'upload_view' }}">Upload</a>
+      <a href="{{ url_for('ingest_view') }}" class="{{ 'active' if request.endpoint == 'ingest_view' }}">Ingest</a>
+      <a href="{{ url_for('chunks_view') }}" class="{{ 'active' if request.endpoint == 'chunks_view' }}">Chunks</a>
+      <a href="{{ url_for('chat_view') }}" class="{{ 'active' if request.endpoint == 'chat_view' }}">Chat</a>
+    </nav>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="layout">
+    <aside class="sidebar">
+      {% block sidebar %}{% endblock %}
+    </aside>
+    <main class="main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

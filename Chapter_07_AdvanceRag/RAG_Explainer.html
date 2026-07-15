@@ -1,0 +1,772 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Advanced RAG Explorer — How Hybrid RAG Works</title>
+<meta name="description" content="A build log for a hybrid dense+sparse RAG system over 5,000 VWO test cases: bge-m3, Qdrant native RRF fusion, bge-reranker-v2-m3, and Openrouter.">
+<style>
+  :root {
+    --ink: #F1F2F5;
+    --ink-raised: #FFFFFF;
+    --ink-border: #DCE0E6;
+    --text: #171B21;
+    --text-soft: #4B5563;
+    --text-faint: #8792A0;
+    --dense: #1791B3;
+    --dense-dim: rgba(23, 145, 179, 0.14);
+    --sparse: #B9700E;
+    --sparse-dim: rgba(185, 112, 14, 0.14);
+    --fusion: #7C3AED;
+    --fusion-dim: rgba(124, 58, 237, 0.14);
+    --good: #2E7D5B;
+    --mono: "Cascadia Code", "JetBrains Mono", "SF Mono", Consolas, "Roboto Mono", ui-monospace, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --measure: 700px;
+    color-scheme: light dark;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #10141A;
+      --ink-raised: #1B212B;
+      --ink-border: #2A3340;
+      --text: #E7EAEE;
+      --text-soft: #9AA5B3;
+      --text-faint: #667080;
+      --dense: #55C6E8;
+      --dense-dim: rgba(85, 198, 232, 0.16);
+      --sparse: #F2A94E;
+      --sparse-dim: rgba(242, 169, 78, 0.16);
+      --fusion: #C68CFF;
+      --fusion-dim: rgba(198, 140, 255, 0.16);
+      --good: #6FBF9A;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink: #10141A;
+    --ink-raised: #1B212B;
+    --ink-border: #2A3340;
+    --text: #E7EAEE;
+    --text-soft: #9AA5B3;
+    --text-faint: #667080;
+    --dense: #55C6E8;
+    --dense-dim: rgba(85, 198, 232, 0.16);
+    --sparse: #F2A94E;
+    --sparse-dim: rgba(242, 169, 78, 0.16);
+    --fusion: #C68CFF;
+    --fusion-dim: rgba(198, 140, 255, 0.16);
+    --good: #6FBF9A;
+  }
+
+  :root[data-theme="light"] {
+    --ink: #F1F2F5;
+    --ink-raised: #FFFFFF;
+    --ink-border: #DCE0E6;
+    --text: #171B21;
+    --text-soft: #4B5563;
+    --text-faint: #8792A0;
+    --dense: #1791B3;
+    --dense-dim: rgba(23, 145, 179, 0.14);
+    --sparse: #B9700E;
+    --sparse-dim: rgba(185, 112, 14, 0.14);
+    --fusion: #7C3AED;
+    --fusion-dim: rgba(124, 58, 237, 0.14);
+    --good: #2E7D5B;
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--ink); }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--mono);
+    font-weight: 700;
+    line-height: 1.15;
+    text-wrap: balance;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  p { margin: 0; }
+  a { color: var(--dense); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--fusion); outline-offset: 3px; }
+
+  .tabular { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--mono); }
+
+  /* ---------- progress rail ---------- */
+  .rail {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--ink-border);
+    z-index: 50;
+  }
+  .rail-fill {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    background: linear-gradient(var(--dense), var(--fusion));
+    transform: scaleY(0);
+    transform-origin: top;
+    will-change: transform;
+  }
+  @media (max-width: 720px) { .rail { display: none; } }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; }
+
+  section { padding: 5rem 0; border-top: 1px solid var(--ink-border); }
+  section:first-of-type { border-top: none; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 0.9rem;
+  }
+
+  .section-head { max-width: var(--measure); margin-bottom: 2.25rem; }
+  .section-head h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); margin-bottom: 0.6rem; }
+  .section-head p { color: var(--text-soft); max-width: 62ch; }
+
+  /* ---------- reveal-on-scroll ---------- */
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.in-view { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ================= HERO ================= */
+  .hero { padding-top: 4.5rem; border-top: none; }
+  .hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 2.5rem; align-items: center; }
+  @media (max-width: 860px) { .hero-grid { grid-template-columns: 1fr; } }
+
+  .hero h1 { font-size: clamp(2rem, 4.4vw, 3.1rem); }
+  .hero h1 .accent-dense { color: var(--dense); }
+  .hero h1 .accent-sparse { color: var(--sparse); }
+  .hero h1 .accent-fusion { color: var(--fusion); }
+
+  .hero-sub { margin-top: 1.1rem; color: var(--text-soft); max-width: 56ch; font-size: 1.02rem; }
+
+  .hero-canvas-wrap {
+    position: relative;
+    aspect-ratio: 4 / 3.2;
+    background: var(--ink-raised);
+    border: 1px solid var(--ink-border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .hero-canvas-wrap::after {
+    content: 'query walking the corpus — 4 nearest neighbors, live';
+    position: absolute; left: 10px; bottom: 8px;
+    font-family: var(--mono); font-size: 0.68rem; color: var(--text-faint);
+  }
+  #hero-canvas { width: 100%; height: 100%; display: block; }
+
+  .stat-strip {
+    margin-top: 2.75rem;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    border: 1px solid var(--ink-border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .stat-strip div { padding: 1rem 1.1rem; border-left: 1px solid var(--ink-border); }
+  .stat-strip div:first-child { border-left: none; }
+  .stat-strip .stat-num { font-family: var(--mono); font-size: 1.3rem; font-weight: 700; }
+  .stat-strip .stat-label { font-size: 0.72rem; color: var(--text-faint); margin-top: 0.2rem; }
+  @media (max-width: 860px) {
+    .stat-strip { grid-template-columns: repeat(2, 1fr); }
+    .stat-strip div:nth-child(3) { border-left: none; }
+  }
+
+  /* ================= SIGNALS (dense vs sparse) ================= */
+  .signal-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem; }
+  @media (max-width: 720px) { .signal-pair { grid-template-columns: 1fr; } }
+  .signal-card { border: 1px solid var(--ink-border); border-radius: 8px; padding: 1.4rem 1.5rem; background: var(--ink-raised); }
+  .signal-card h3 { font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  .signal-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .signal-card.dense .signal-dot { background: var(--dense); }
+  .signal-card.sparse .signal-dot { background: var(--sparse); }
+  .signal-card p { color: var(--text-soft); font-size: 0.92rem; margin-top: 0.6rem; }
+  .signal-viz { height: 56px; margin-top: 1rem; display: flex; align-items: flex-end; gap: 3px; }
+  .signal-viz.wave span {
+    flex: 1; border-radius: 3px 3px 0 0; background: var(--dense-dim); position: relative; overflow: hidden;
+  }
+  .signal-viz.wave span::after { content:''; position:absolute; inset:0; background: var(--dense); opacity:.55; }
+  .signal-viz.bars span { flex: 1; background: var(--sparse); border-radius: 2px 2px 0 0; opacity: 0.85; }
+
+  /* ================= PIPELINE DIAGRAM ================= */
+  .diagram-scroll { overflow-x: auto; padding-bottom: 0.5rem; }
+  .pipeline {
+    display: flex; align-items: center; gap: 0;
+    min-width: 900px;
+    padding: 1.5rem 0.5rem;
+  }
+  .node {
+    font-family: var(--mono); font-size: 0.78rem; text-align: center;
+    border: 1px solid var(--ink-border); background: var(--ink-raised);
+    border-radius: 6px; padding: 0.65rem 0.8rem; white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .node .node-label { font-weight: 700; }
+  .node .node-sub { display:block; color: var(--text-faint); font-size: 0.66rem; margin-top: 0.15rem; }
+  .node.fusion-node { border-color: var(--fusion); color: var(--fusion); }
+  .node.dense-node { border-color: var(--dense); color: var(--dense); }
+  .node.sparse-node { border-color: var(--sparse); color: var(--sparse); }
+
+  .wire { flex: 1; height: 2px; min-width: 22px; background: var(--ink-border); position: relative; overflow: hidden; }
+  .wire.dense-wire { background: var(--dense-dim); }
+  .wire.sparse-wire { background: var(--sparse-dim); }
+  .wire::after {
+    content:''; position:absolute; top:0; left:-30%; width: 30%; height: 100%;
+    background: linear-gradient(90deg, transparent, currentColor, transparent);
+  }
+  .wire { color: var(--fusion); }
+  .wire.dense-wire { color: var(--dense); }
+  .wire.sparse-wire { color: var(--sparse); }
+  @media (prefers-reduced-motion: no-preference) {
+    .wire::after { animation: pulse-wire 2.6s linear infinite; }
+  }
+  @keyframes pulse-wire { from { left: -30%; } to { left: 100%; } }
+
+  .fork { display: flex; flex-direction: column; gap: 0.6rem; margin: 0 0.4rem; flex-shrink: 0; }
+  .fork-lane { display: flex; align-items: center; gap: 0; }
+  .fork-bracket { width: 10px; align-self: stretch; border: 1px solid var(--ink-border); border-right: none; border-radius: 6px 0 0 6px; margin-right: -1px; }
+
+  .pipeline-caption { margin-top: 1rem; color: var(--text-faint); font-size: 0.82rem; }
+  .pipeline-caption code { font-family: var(--mono); background: var(--ink-border); padding: 0.1rem 0.35rem; border-radius: 4px; }
+
+  /* ================= TECHNIQUE CARDS ================= */
+  .tech-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.1rem; }
+  .tech-card {
+    border: 1px solid var(--ink-border); border-radius: 8px; padding: 1.4rem;
+    background: var(--ink-raised); transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+  .tech-card:hover { border-color: var(--fusion); transform: translateY(-2px); }
+  .tech-card .tech-index { font-family: var(--mono); font-size: 0.72rem; color: var(--text-faint); }
+  .tech-card h3 { font-size: 1.02rem; margin: 0.35rem 0 0.6rem; }
+  .tech-card p { color: var(--text-soft); font-size: 0.9rem; }
+  .tech-card p + p { margin-top: 0.5rem; }
+  .tech-card .tag { display:inline-block; font-family: var(--mono); font-size: 0.68rem; padding: 0.1rem 0.4rem; border-radius: 4px; margin-top: 0.7rem; }
+  .tag.tag-dense { background: var(--dense-dim); color: var(--dense); }
+  .tag.tag-sparse { background: var(--sparse-dim); color: var(--sparse); }
+  .tag.tag-fusion { background: var(--fusion-dim); color: var(--fusion); }
+
+  /* mini reorder viz for reranking card */
+  .reorder-viz { display: flex; gap: 1rem; margin-top: 0.9rem; font-family: var(--mono); font-size: 0.72rem; }
+  .reorder-viz ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .reorder-viz li { background: var(--ink); border: 1px solid var(--ink-border); border-radius: 3px; padding: 0.2rem 0.4rem; color: var(--text-faint); }
+  .reorder-viz li.kept { border-color: var(--fusion); color: var(--fusion); }
+  .reorder-viz .arrow { align-self: center; color: var(--text-faint); }
+
+  /* ================= CORPUS ================= */
+  .corpus-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; }
+  @media (max-width: 860px) { .corpus-grid { grid-template-columns: 1fr; } }
+
+  .bars-list { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 1rem; }
+  .bar-row { display: grid; grid-template-columns: 168px 1fr 44px; align-items: center; gap: 0.6rem; font-size: 0.8rem; }
+  .bar-row .bar-name { color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { height: 9px; background: var(--ink-border); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; background: var(--fusion); }
+  .bar-row .bar-count { font-family: var(--mono); text-align: right; color: var(--text-faint); }
+  .bars-note { margin-top: 0.9rem; font-size: 0.82rem; color: var(--text-faint); }
+
+  .sample-row-card {
+    margin-top: 1.75rem; border: 1px solid var(--ink-border); border-radius: 8px;
+    background: var(--ink-raised); overflow: hidden;
+  }
+  .sample-row-card .srow-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.7rem 1rem; border-bottom: 1px solid var(--ink-border);
+    font-family: var(--mono); font-size: 0.74rem; color: var(--text-faint);
+  }
+  .sample-row-card .srow-body { padding: 1rem 1.1rem; font-size: 0.88rem; }
+  .sample-row-card dt { font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-faint); margin-top: 0.7rem; }
+  .sample-row-card dt:first-child { margin-top: 0; }
+  .sample-row-card dd { margin: 0.2rem 0 0; color: var(--text-soft); white-space: pre-wrap; }
+
+  /* ================= STORY ================= */
+  .story p { max-width: var(--measure); color: var(--text-soft); font-size: 0.98rem; }
+  .story p + p { margin-top: 1rem; }
+  .story strong { color: var(--text); }
+
+  /* ================= REFERENCE TABLES ================= */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--ink-border); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.86rem; min-width: 480px; }
+  th, td { text-align: left; padding: 0.55rem 0.9rem; border-bottom: 1px solid var(--ink-border); }
+  th { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); background: var(--ink); }
+  td.mono { color: var(--text-soft); }
+  tr:last-child td { border-bottom: none; }
+  .ref-tables { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 1.5rem; align-items: start; }
+  @media (max-width: 860px) { .ref-tables { grid-template-columns: 1fr; } }
+
+  footer { padding: 3rem 0 4rem; color: var(--text-faint); font-size: 0.85rem; }
+  footer .foot-brand { font-family: var(--mono); color: var(--text-soft); margin-bottom: 0.3rem; }
+</style>
+
+<div class="rail" aria-hidden="true"><div class="rail-fill" id="rail-fill"></div></div>
+
+<main>
+
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow">The Testing Academy &middot; Advanced RAG Explorer</div>
+        <h1>One question. <span class="accent-dense">Two signals.</span> <span class="accent-fusion">One ranked answer.</span></h1>
+        <p class="hero-sub">
+          A hybrid-retrieval RAG system built end to end over 5,000 real-shaped VWO test cases —
+          dense embeddings for meaning, sparse embeddings for exact wording, reciprocal-rank fusion
+          to combine them, a cross-encoder to double-check the result, and a grounded model to write
+          the final answer. This page is the build log: what each stage does, and why it's there.
+        </p>
+      </div>
+      <div class="hero-canvas-wrap">
+        <canvas id="hero-canvas" role="img" aria-label="Animated visualization of a query point finding its nearest neighbors among clustered corpus embeddings"></canvas>
+      </div>
+    </div>
+
+    <div class="stat-strip tabular">
+      <div><div class="stat-num">5,000</div><div class="stat-label">test cases indexed</div></div>
+      <div><div class="stat-num">20</div><div class="stat-label">VWO product modules</div></div>
+      <div><div class="stat-num">11</div><div class="stat-label">test types per module</div></div>
+      <div><div class="stat-num">2</div><div class="stat-label">vectors per chunk, 1 model</div></div>
+      <div><div class="stat-num">4</div><div class="stat-label">chunks reach the prompt</div></div>
+    </div>
+  </section>
+
+  <section class="section signals reveal">
+    <div class="section-head">
+      <div class="eyebrow">Why not just one signal</div>
+      <h2>Meaning and wording disagree more than you'd expect</h2>
+      <p>
+        Dense embeddings are excellent at "what does this mean" — they'll surface a test about
+        redirect loops even if you ask about "infinite bounce-back," because they compare meaning,
+        not characters. They're bad at exact tokens: ask for <span class="mono">VWO-2481</span> and
+        a purely dense search may hand back five plausible-looking neighbors that are all the wrong
+        ticket. Sparse embeddings are the mirror image — exact on tokens and IDs, blind to paraphrase.
+        <code class="mono" style="background:var(--ink-border); padding:0.05rem 0.35rem; border-radius:4px;">bge-m3</code>
+        produces both from a single forward pass, so neither signal costs a second model.
+      </p>
+    </div>
+    <div class="signal-pair">
+      <div class="signal-card dense">
+        <h3><span class="signal-dot"></span> Dense &middot; semantic</h3>
+        <div class="signal-viz wave" aria-hidden="true">
+          <span style="height:38%"></span><span style="height:62%"></span><span style="height:80%"></span>
+          <span style="height:70%"></span><span style="height:90%"></span><span style="height:75%"></span>
+          <span style="height:55%"></span><span style="height:66%"></span><span style="height:48%"></span>
+          <span style="height:58%"></span><span style="height:72%"></span><span style="height:40%"></span>
+        </div>
+        <p>Continuous, 1024 dimensions. Finds paraphrase and intent. Loses exact identifiers.</p>
+      </div>
+      <div class="signal-card sparse">
+        <h3><span class="signal-dot"></span> Sparse &middot; lexical</h3>
+        <div class="signal-viz bars" aria-hidden="true">
+          <span style="height:15%"></span><span style="height:85%"></span><span style="height:20%"></span>
+          <span style="height:10%"></span><span style="height:60%"></span><span style="height:12%"></span>
+          <span style="height:95%"></span><span style="height:18%"></span><span style="height:8%"></span>
+          <span style="height:45%"></span><span style="height:14%"></span><span style="height:70%"></span>
+        </div>
+        <p>Discrete token weights. Finds exact wording and IDs. Loses paraphrase and intent.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section pipeline reveal">
+    <div class="section-head">
+      <div class="eyebrow">Stage 2 &middot; Chat</div>
+      <h2>The pipeline, end to end</h2>
+      <p>Every request in the running app takes this exact path — this diagram isn't a simplification for the slide, it's what <span class="mono">/chat/stream</span> actually runs.</p>
+    </div>
+
+    <div class="diagram-scroll">
+      <div class="pipeline">
+        <div class="node"><span class="node-label">Query</span><span class="node-sub">user question</span></div>
+        <div class="wire"></div>
+        <div class="node"><span class="node-label">Rewrite</span><span class="node-sub">&times;3, Openrouter</span></div>
+        <div class="wire"></div>
+        <div class="fork">
+          <div class="fork-lane">
+            <div class="fork-bracket"></div>
+            <div class="node dense-node"><span class="node-label">Dense embed</span><span class="node-sub">bge-m3</span></div>
+            <div class="wire dense-wire"></div>
+            <div class="node dense-node"><span class="node-label">Dense search</span><span class="node-sub">cosine, top 20</span></div>
+          </div>
+          <div class="fork-lane">
+            <div class="fork-bracket"></div>
+            <div class="node sparse-node"><span class="node-label">Sparse embed</span><span class="node-sub">bge-m3</span></div>
+            <div class="wire sparse-wire"></div>
+            <div class="node sparse-node"><span class="node-label">Sparse search</span><span class="node-sub">lexical, top 20</span></div>
+          </div>
+        </div>
+        <div class="wire"></div>
+        <div class="node fusion-node"><span class="node-label">RRF fuse</span><span class="node-sub">Qdrant native query</span></div>
+        <div class="wire"></div>
+        <div class="node"><span class="node-label">Rerank</span><span class="node-sub">bge-reranker-v2-m3</span></div>
+        <div class="wire"></div>
+        <div class="node"><span class="node-label">Generate</span><span class="node-sub">Openrouter</span></div>
+        <div class="wire"></div>
+        <div class="node fusion-node"><span class="node-label">Answer</span><span class="node-sub">cited [Chunk N]</span></div>
+      </div>
+    </div>
+    <p class="pipeline-caption">
+      One model (<code>bge-m3</code>) produces both the dense and sparse lane. Fusion happens
+      server-side in Qdrant via a native <code>FusionQuery(fusion=RRF)</code> query with two
+      <code>prefetch</code> lists — no fusion math lives in the app.
+    </p>
+  </section>
+
+  <section class="section techniques reveal">
+    <div class="section-head">
+      <div class="eyebrow">Five techniques, one pipeline</div>
+      <h2>What each stage is actually doing</h2>
+      <p>Each of these is a real, independently swappable piece — none of them assume the others exist.</p>
+    </div>
+    <div class="tech-grid">
+      <div class="tech-card">
+        <div class="tech-index">01</div>
+        <h3>Hybrid embeddings</h3>
+        <p>One <code class="mono">BGEM3FlagModel.encode()</code> call returns a 1024-dim dense
+        vector and a sparse lexical-weight map for every chunk — no second model to keep in sync,
+        no separate BM25 index to maintain.</p>
+        <span class="tag tag-dense">bge-m3</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-index">02</div>
+        <h3>Storage &amp; fusion</h3>
+        <p>Qdrant holds both vector types on the same point and fuses them with a native RRF query
+        — prefetch a dense list and a sparse list, ask for <code class="mono">Fusion.RRF</code>, get one
+        ranked list back. Runs identically against the embedded on-disk store this demo ships with,
+        or a full Qdrant server.</p>
+        <span class="tag tag-fusion">Qdrant</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-index">03</div>
+        <h3>Cross-encoder reranking</h3>
+        <p>Vector similarity is fast but approximate. The top candidates get a second look from a
+        cross-encoder that reads the query and each chunk together — only the strongest 4 survive
+        to the prompt.</p>
+        <div class="reorder-viz" aria-hidden="true">
+          <ol>
+            <li>fused #1</li><li>fused #2</li><li>fused #3</li><li>fused #4</li><li>fused #5</li>
+          </ol>
+          <span class="arrow">&rarr;</span>
+          <ol>
+            <li class="kept">fused #3</li><li class="kept">fused #1</li><li class="kept">fused #5</li><li class="kept">fused #4</li><li>fused #2</li>
+          </ol>
+        </div>
+        <span class="tag tag-sparse">bge-reranker-v2-m3</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-index">04</div>
+        <h3>Query rewriting</h3>
+        <p>Before retrieval, the question is rewritten into three alternate phrasings and searched
+        alongside the original. Recall goes up because the corpus rarely uses the same words the
+        user does.</p>
+        <span class="tag tag-dense">Openrouter</span>
+      </div>
+      <div class="tech-card">
+        <div class="tech-index">05</div>
+        <h3>Grounded generation</h3>
+        <p>Surviving chunks go to the model with instructions to cite <code class="mono">[Chunk N]</code>
+        and to say plainly when the corpus doesn't answer the question. A phrasing heuristic
+        ("create a test case for...") switches modes and drafts a new, structured test case from
+        the retrieved examples instead.</p>
+        <span class="tag tag-fusion">Openrouter &middot; deepseek</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section corpus reveal">
+    <div class="section-head">
+      <div class="eyebrow">The corpus</div>
+      <h2>What's actually in the box</h2>
+      <p>5,000 rows, JIRA-shaped columns — generated by a seeded script so re-running it always produces the same corpus.</p>
+    </div>
+
+    <div class="corpus-grid">
+      <div>
+        <h3 style="font-size:0.95rem;">By test type</h3>
+        <div class="bars-list tabular">
+          <div class="bar-row"><span class="bar-name">Positive</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">455</span></div>
+          <div class="bar-row"><span class="bar-name">Negative</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">455</span></div>
+          <div class="bar-row"><span class="bar-name">Boundary</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">455</span></div>
+          <div class="bar-row"><span class="bar-name">Security</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">455</span></div>
+          <div class="bar-row"><span class="bar-name">Performance</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">455</span></div>
+          <div class="bar-row"><span class="bar-name">Usability</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">455</span></div>
+          <div class="bar-row"><span class="bar-name">Regression</span><div class="bar-track"><div class="bar-fill" style="width:99.8%"></div></div><span class="bar-count">454</span></div>
+          <div class="bar-row"><span class="bar-name">Smoke</span><div class="bar-track"><div class="bar-fill" style="width:99.8%"></div></div><span class="bar-count">454</span></div>
+          <div class="bar-row"><span class="bar-name">Compatibility</span><div class="bar-track"><div class="bar-fill" style="width:99.8%"></div></div><span class="bar-count">454</span></div>
+          <div class="bar-row"><span class="bar-name">Accessibility</span><div class="bar-track"><div class="bar-fill" style="width:99.8%"></div></div><span class="bar-count">454</span></div>
+          <div class="bar-row"><span class="bar-name">Integration</span><div class="bar-track"><div class="bar-fill" style="width:99.8%"></div></div><span class="bar-count">454</span></div>
+        </div>
+        <p class="bars-note">Balanced by design: every test type carries 454 or 455 rows, so retrieval quality reflects the pipeline, not class imbalance.</p>
+      </div>
+
+      <div>
+        <h3 style="font-size:0.95rem;">By module (top 8 of 20)</h3>
+        <div class="bars-list tabular">
+          <div class="bar-row"><span class="bar-name">Visual Editor</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">330</span></div>
+          <div class="bar-row"><span class="bar-name">Split URL Testing</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">330</span></div>
+          <div class="bar-row"><span class="bar-name">Server-Side Testing</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">330</span></div>
+          <div class="bar-row"><span class="bar-name">Multivariate Testing</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">330</span></div>
+          <div class="bar-row"><span class="bar-name">Personalization</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-count">330</span></div>
+          <div class="bar-row"><span class="bar-name">Audience Targeting</span><div class="bar-track"><div class="bar-fill" style="width:81.8%"></div></div><span class="bar-count">270</span></div>
+          <div class="bar-row"><span class="bar-name">Goals &amp; Conversion</span><div class="bar-track"><div class="bar-fill" style="width:66.7%"></div></div><span class="bar-count">220</span></div>
+          <div class="bar-row"><span class="bar-name">+ 13 more modules</span><div class="bar-track"><div class="bar-fill" style="width:66.7%"></div></div><span class="bar-count">220</span></div>
+        </div>
+        <p class="bars-note">The five flagship experimentation surfaces get extra weight (330 rows each); the remaining 15 modules carry 220&ndash;270.</p>
+      </div>
+    </div>
+
+    <div class="sample-row-card">
+      <div class="srow-head">
+        <span>VWO-1001 &middot; row id 1</span>
+        <span>Visual Editor &middot; Positive &middot; High</span>
+      </div>
+      <dl class="srow-body">
+        <dt>Title</dt>
+        <dd>Verify element text editing functions correctly in Visual Editor under valid conditions</dd>
+        <dt>Steps</dt>
+        <dd>1. Log in to the VWO dashboard with a valid account.
+2. Navigate to Visual Editor and open the configuration for element text editing.
+3. Enter valid, supported values for element text editing.
+4. Save the configuration and publish/activate it.
+5. Trigger the scenario on the target page or app and observe the behavior.</dd>
+        <dt>Expected</dt>
+        <dd>Element text editing behaves exactly as configured, with no errors logged in the browser console or VWO dashboard, and the change is reflected in real time.</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="section story reveal">
+    <div class="section-head">
+      <div class="eyebrow">How this got built</div>
+      <h2>Vibe-coded, then verified</h2>
+    </div>
+    <div class="story">
+      <p>
+        The dataset came first: a seeded Python generator crosses 20 VWO modules against 11 test
+        types and a bank of browser/device variants, so re-running it produces the identical 5,000
+        rows every time. Then the retrieval stack — <strong>bge-m3</strong> for hybrid embeddings,
+        <strong>Qdrant</strong> in embedded mode so nobody needs Docker for a demo,
+        <strong>bge-reranker-v2-m3</strong> for the second pass, <strong>Openrouter</strong> for
+        rewriting and generation.
+      </p>
+      <p>
+        Before any of it got wired into the Flask app, the exact Qdrant calls it depends on — dense
+        search, sparse search, native RRF fusion, payload filtering, faceted filters — were run
+        against the actual installed client library in a throwaway collection first. Then the full
+        ingest-to-chat path was run end to end with the model calls swapped for deterministic fakes,
+        to prove the data — chunk counts, point IDs, citation numbering, the highlight state that
+        connects a chat answer back to the chunk browser — actually flows through correctly. Nothing
+        on this page is a diagram of what the code is supposed to do; it's a diagram of what was run.
+      </p>
+    </div>
+  </section>
+
+  <section class="section reference reveal">
+    <div class="section-head">
+      <div class="eyebrow">Reference</div>
+      <h2>Stack &amp; tunables</h2>
+    </div>
+    <div class="ref-tables">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>Technology</th></tr></thead>
+          <tbody>
+            <tr><td>Web app</td><td class="mono">Flask, server-rendered + SSE</td></tr>
+            <tr><td>Embeddings</td><td class="mono">BAAI/bge-m3 (dense 1024-d + sparse)</td></tr>
+            <tr><td>Vector store</td><td class="mono">Qdrant, embedded on-disk or server</td></tr>
+            <tr><td>Reranker</td><td class="mono">BAAI/bge-reranker-v2-m3</td></tr>
+            <tr><td>Rewrite &amp; generation</td><td class="mono">Openrouter (deepseek/deepseek-v4-pro)</td></tr>
+            <tr><td>UI theme</td><td class="mono">Two-pane, warm cream + coral</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table class="tabular">
+          <thead><tr><th>Tunable</th><th>Default</th></tr></thead>
+          <tbody>
+            <tr><td>CHUNK_SIZE</td><td class="mono">1000</td></tr>
+            <tr><td>CHUNK_OVERLAP</td><td class="mono">150</td></tr>
+            <tr><td>TOP_N_HYBRID</td><td class="mono">20</td></tr>
+            <tr><td>TOP_K_RERANK</td><td class="mono">4</td></tr>
+            <tr><td>RRF_K</td><td class="mono">60</td></tr>
+            <tr><td>REWRITE_COUNT</td><td class="mono">3</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="foot-brand">Advanced RAG Explorer</div>
+    <div>Built for The Testing Academy. The running app, full source, and the 5,000-row dataset live alongside this page in <span class="mono">Chapter_07_AdvanceRag</span>.</div>
+  </footer>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- scroll progress rail ----------
+  var railFill = document.getElementById("rail-fill");
+  function updateRail() {
+    var doc = document.documentElement;
+    var scrollable = doc.scrollHeight - doc.clientHeight;
+    var pct = scrollable > 0 ? Math.min(1, Math.max(0, window.scrollY / scrollable)) : 0;
+    if (railFill) railFill.style.transform = "scaleY(" + pct + ")";
+  }
+  document.addEventListener("scroll", updateRail, { passive: true });
+  window.addEventListener("resize", updateRail);
+  updateRail();
+
+  // ---------- reveal on scroll ----------
+  var reveals = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("in-view");
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(function (el) { io.observe(el); });
+  } else {
+    reveals.forEach(function (el) { el.classList.add("in-view"); });
+  }
+
+  // ---------- hero canvas: query walking corpus embedding space ----------
+  var canvas = document.getElementById("hero-canvas");
+  if (!canvas || !canvas.getContext) return;
+  var ctx = canvas.getContext("2d");
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var W = 0, H = 0;
+
+  function resize() {
+    var rect = canvas.getBoundingClientRect();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = rect.width; H = rect.height;
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  // Small deterministic PRNG so the layout is stable across reloads/screenshots.
+  var seed = 7919;
+  function rand() {
+    seed = (seed * 48271) % 2147483647;
+    return seed / 2147483647;
+  }
+
+  var clusters = [];
+  for (var c = 0; c < 9; c++) {
+    clusters.push({ x: 0.12 + rand() * 0.76, y: 0.14 + rand() * 0.72 });
+  }
+  var points = [];
+  clusters.forEach(function (center) {
+    var n = 9 + Math.floor(rand() * 7);
+    for (var i = 0; i < n; i++) {
+      var angle = rand() * Math.PI * 2;
+      var r = rand() * 0.05;
+      points.push({
+        x: center.x + Math.cos(angle) * r,
+        y: center.y + Math.sin(angle) * r * 0.75,
+        sparse: rand() < 0.32
+      });
+    }
+  });
+
+  var waypoints = [];
+  for (var w = 0; w < 6; w++) {
+    waypoints.push({ x: 0.16 + rand() * 0.68, y: 0.18 + rand() * 0.64 });
+  }
+
+  function nearest(qx, qy, k) {
+    return points
+      .map(function (p) { return { p: p, d: Math.hypot(p.x - qx, p.y - qy) }; })
+      .sort(function (a, b) { return a.d - b.d; })
+      .slice(0, k)
+      .map(function (o) { return o.p; });
+  }
+
+  function colors() {
+    var s = getComputedStyle(document.documentElement);
+    return {
+      dense: s.getPropertyValue("--dense").trim(),
+      sparse: s.getPropertyValue("--sparse").trim(),
+      fusion: s.getPropertyValue("--fusion").trim(),
+      faint: s.getPropertyValue("--text-faint").trim()
+    };
+  }
+
+  function easeInOutQuad(t) { return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; }
+
+  function draw(tMs) {
+    ctx.clearRect(0, 0, W, H);
+    var col = colors();
+    var cycle = 4200;
+    var leg = Math.floor(tMs / cycle) % waypoints.length;
+    var next = (leg + 1) % waypoints.length;
+    var localT = easeInOutQuad((tMs % cycle) / cycle);
+    var a = waypoints[leg], b = waypoints[next];
+    var qx = a.x + (b.x - a.x) * localT;
+    var qy = a.y + (b.y - a.y) * localT;
+    var neighbors = nearest(qx, qy, 4);
+
+    points.forEach(function (p) {
+      var isNeighbor = neighbors.indexOf(p) !== -1;
+      ctx.beginPath();
+      ctx.arc(p.x * W, p.y * H, isNeighbor ? 3.4 : (p.sparse ? 2.1 : 1.7), 0, Math.PI * 2);
+      ctx.fillStyle = isNeighbor ? col.dense : (p.sparse ? col.sparse : col.faint);
+      ctx.globalAlpha = isNeighbor ? 1 : (p.sparse ? 0.55 : 0.4);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    neighbors.forEach(function (p) {
+      ctx.beginPath();
+      ctx.moveTo(qx * W, qy * H);
+      ctx.lineTo(p.x * W, p.y * H);
+      ctx.strokeStyle = col.fusion;
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+
+    ctx.beginPath();
+    ctx.arc(qx * W, qy * H, 9, 0, Math.PI * 2);
+    ctx.strokeStyle = col.fusion;
+    ctx.globalAlpha = 0.5;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(qx * W, qy * H, 5, 0, Math.PI * 2);
+    ctx.fillStyle = col.fusion;
+    ctx.fill();
+  }
+
+  if (reduceMotion) {
+    draw(0);
+  } else {
+    (function loop(ts) {
+      draw(ts);
+      requestAnimationFrame(loop);
+    })(0);
+  }
+})();
+</script>
