@@ -32,12 +32,13 @@ export default function QueryPanel({ enabled }) {
     setRunning(true);
     setStages({ question: "done", embed: "idle", retrieve: "idle", generate: "idle" });
 
-    streamQuery(
+    const source = streamQuery(
       q,
       (event) => {
         if (event.stage === "error") {
           updateTurn(index, { error: event.message });
           setRunning(false);
+          source.close(); // otherwise EventSource treats the server ending the stream as a drop and retries
           return;
         }
 
@@ -49,6 +50,7 @@ export default function QueryPanel({ enabled }) {
         if (event.stage === "generate") {
           updateTurn(index, { answer: event.answer, citations: event.citations });
           setRunning(false);
+          source.close(); // turn finished - close before EventSource's own auto-reconnect kicks in
         }
       },
       () => {

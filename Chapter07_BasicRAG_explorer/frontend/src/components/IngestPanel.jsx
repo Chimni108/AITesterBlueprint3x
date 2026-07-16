@@ -31,11 +31,12 @@ export default function IngestPanel({ onIngested }) {
     setStoreInfo(null);
     setStages({ ...IDLE_STAGES });
 
-    streamIngest(
+    const source = streamIngest(
       (event) => {
         if (event.stage === "error") {
           setError(event.message);
           setRunning(false);
+          source.close(); // otherwise EventSource treats the server ending the stream as a drop and retries
           return;
         }
 
@@ -50,6 +51,7 @@ export default function IngestPanel({ onIngested }) {
           setStoreInfo(event);
           setRunning(false);
           onIngested?.();
+          source.close(); // pipeline finished - close before EventSource's own auto-reconnect kicks in
         }
       },
       () => {
