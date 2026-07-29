@@ -1,0 +1,15 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ingest artifacts
+data/.ingest_state.json
+data/01_selenium_framework/repo/
+data/02_playwright_framework/repo/
+data/04_jira_tickets/*.json
+
+# local qdrant / model caches
+qdrant_storage/
+.cache/

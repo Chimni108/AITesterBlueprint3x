@@ -1,0 +1,29 @@
+qdrant:
+  url: http://localhost:6333
+  collection: qabuddy
+
+embedding:
+  dense_model: BAAI/bge-base-en-v1.5
+  sparse_model: Qdrant/bm25
+  dense_dim: 768
+
+retrieval:
+  top_k: 8          # chunks sent to the LLM
+  prefetch_k: 24    # candidates per branch before RRF fusion
+
+llm:
+  model: claude-opus-4-8   # override with ANTHROPIC_MODEL env var
+  max_tokens: 16000
+
+# chunk_tokens / overlap are approximate tokens (word-based estimate)
+sources:
+  01_selenium_framework:   {kind: code,       chunk_tokens: 400, overlap: 0}
+  02_playwright_framework: {kind: code,       chunk_tokens: 400, overlap: 0}
+  03_test_cases:           {kind: tabular,    chunk_tokens: 0,   overlap: 0}
+  04_jira_tickets:         {kind: jira,       chunk_tokens: 800, overlap: 100}
+  05_company_docs:         {kind: docs,       chunk_tokens: 700, overlap: 120}
+  06_figma_designs:        {kind: skip,       chunk_tokens: 0,   overlap: 0}   # Phase 2
+  07_meeting_notes:        {kind: transcript, chunk_tokens: 500, overlap: 80}
+  08_lucid_charts:         {kind: text,       chunk_tokens: 500, overlap: 50}
+  09_prd_srs_docs:         {kind: docs,       chunk_tokens: 700, overlap: 120}
+  10_jenkins_logs:         {kind: logs,       chunk_tokens: 500, overlap: 0}

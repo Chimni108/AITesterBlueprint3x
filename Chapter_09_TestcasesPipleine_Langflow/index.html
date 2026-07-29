@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RAG Explorer</title>
+<style>
+  :root {
+    --bg: #F7F7F8;
+    --panel: #FFFFFF;
+    --border: #E3E4E8;
+    --ink: #1B1D22;
+    --ink-soft: #676B76;
+    --accent: #4C5FD5;
+    --accent-soft: rgba(76, 95, 213, 0.1);
+    --user-bubble: #4C5FD5;
+    --user-text: #FFFFFF;
+    --assistant-bubble: #FFFFFF;
+    --error-bg: #FDEDEB;
+    --error-text: #B3261E;
+    --error-border: #F4C7C2;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16171C;
+      --panel: #1E2027;
+      --border: #2E313A;
+      --ink: #EDEEF2;
+      --ink-soft: #9498A3;
+      --accent: #7C8CFF;
+      --accent-soft: rgba(124, 140, 255, 0.16);
+      --user-bubble: #4C5FD5;
+      --user-text: #FFFFFF;
+      --assistant-bubble: #262931;
+      --error-bg: rgba(179, 38, 30, 0.14);
+      --error-text: #FF8A80;
+      --error-border: rgba(179, 38, 30, 0.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  body { display: flex; flex-direction: column; }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1.25rem;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .brand { font-weight: 700; font-size: 1.05rem; }
+  .brand-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); display: inline-block; margin-right: 0.5rem; }
+  .flow-info { color: var(--ink-soft); font-size: 0.82rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #settings-toggle {
+    background: none; border: 1px solid var(--border); border-radius: 8px;
+    width: 34px; height: 34px; font-size: 1rem; cursor: pointer; color: var(--ink-soft);
+  }
+  #settings-toggle:hover { background: var(--accent-soft); color: var(--accent); }
+
+  #settings-panel {
+    padding: 0.9rem 1.25rem;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    flex-shrink: 0;
+  }
+  #settings-panel.hidden { display: none; }
+  #settings-panel label { font-size: 0.82rem; color: var(--ink-soft); font-weight: 600; }
+  #settings-panel input {
+    flex: 1; min-width: 220px; font-size: 0.88rem; padding: 0.5rem 0.7rem;
+    border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--ink);
+  }
+  #settings-panel .hint { width: 100%; margin: 0; font-size: 0.76rem; color: var(--ink-soft); }
+  #key-status { font-size: 0.78rem; color: var(--accent); min-width: 60px; }
+
+  main#chat-thread {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .empty-state { margin: auto; text-align: center; color: var(--ink-soft); max-width: 420px; }
+  .empty-state h2 { color: var(--ink); font-size: 1.1rem; margin-bottom: 0.4rem; }
+  .empty-state p { font-size: 0.88rem; line-height: 1.5; }
+
+  .bubble {
+    max-width: 78%;
+    padding: 0.7rem 0.95rem;
+    border-radius: 14px;
+    font-size: 0.94rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .bubble.user { align-self: flex-end; background: var(--user-bubble); color: var(--user-text); border-bottom-right-radius: 4px; }
+  .bubble.assistant { align-self: flex-start; background: var(--assistant-bubble); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .bubble.error { align-self: flex-start; background: var(--error-bg); color: var(--error-text); border: 1px solid var(--error-border); max-width: 90%; }
+
+  .bubble.error .error-title { font-weight: 700; margin-bottom: 0.3rem; }
+  .bubble.error pre {
+    margin: 0.5rem 0 0; padding: 0.6rem; background: rgba(0,0,0,0.05); border-radius: 8px;
+    font-size: 0.78rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word;
+  }
+  .retry-btn {
+    margin-top: 0.6rem; background: var(--error-text); color: #fff; border: none;
+    padding: 0.4rem 0.85rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  }
+  .retry-btn:hover { opacity: 0.85; }
+
+  .raw-fallback summary { cursor: pointer; color: var(--ink-soft); font-size: 0.78rem; margin-top: 0.4rem; }
+  .raw-fallback pre {
+    margin: 0.5rem 0 0; padding: 0.6rem; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 0.76rem; overflow-x: auto; font-family: "Cascadia Code", Consolas, monospace;
+  }
+
+  .thinking { display: flex; gap: 4px; align-items: center; padding: 0.2rem 0; }
+  .thinking span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--ink-soft);
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .thinking span:nth-child(2) { animation-delay: 0.15s; }
+  .thinking span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); opacity: 0.5; } 30% { transform: translateY(-5px); opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .thinking span { animation: none; opacity: 1; } }
+
+  form#chat-form {
+    display: flex; gap: 0.6rem; padding: 0.9rem 1.25rem;
+    background: var(--panel); border-top: 1px solid var(--border); flex-shrink: 0;
+  }
+  #question-input {
+    flex: 1; font-size: 0.94rem; padding: 0.65rem 0.9rem;
+    border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--ink);
+  }
+  #question-input:focus, #settings-panel input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  #send-btn {
+    background: var(--accent); color: #fff; border: none; padding: 0.65rem 1.3rem;
+    border-radius: 10px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  }
+  #send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  #send-btn:hover:not(:disabled) { filter: brightness(1.08); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="brand-dot"></span>RAG Explorer</div>
+  <div class="flow-info" id="flow-info"></div>
+  <button id="settings-toggle" title="API key settings">&#9881;</button>
+</header>
+
+<div id="settings-panel" class="settings-panel hidden">
+  <label for="api-key-input">x-api-key</label>
+  <input type="password" id="api-key-input" placeholder="paste your Langflow API key" autocomplete="off">
+  <button id="save-key-btn" class="retry-btn" style="background:var(--accent);">Save</button>
+  <span id="key-status"></span>
+  <p class="hint">Stored only in this browser (localStorage) - never written into this file. Get a key in Langflow under your profile icon &rarr; Settings &rarr; Langflow API Keys.</p>
+</div>
+
+<main id="chat-thread">
+  <div class="empty-state" id="empty-state">
+    <h2>Ask your flow a question</h2>
+    <p>This calls <strong>AI3x_Naive_RAG</strong> running locally in Langflow. If it needs an API key, set one via the &#9881; icon above.</p>
+  </div>
+</main>
+
+<form id="chat-form" autocomplete="off">
+  <input type="text" id="question-input" placeholder="Ask a question about the ingested docs..." autocomplete="off">
+  <button type="submit" id="send-btn">Send</button>
+</form>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Configuration: change these to point at a different flow/instance ----
+  const LANGFLOW_BASE_URL = "http://localhost:7861";
+  const FLOW_ID = "ad8a07cd-5f2b-495b-ac8d-2b44d7baca08";
+  const REQUEST_TIMEOUT_MS = 60000;
+  // Optional convenience default. Leave this blank and use the in-app "Save"
+  // field (localStorage) instead - don't put a real key here if this file
+  // might ever be committed/shared.
+  const DEFAULT_API_KEY = "";
+
+  const API_KEY_STORAGE_KEY = "ragExplorer.apiKey";
+
+  const chatThread = document.getElementById("chat-thread");
+  const emptyState = document.getElementById("empty-state");
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("question-input");
+  const sendBtn = document.getElementById("send-btn");
+  const settingsToggle = document.getElementById("settings-toggle");
+  const settingsPanel = document.getElementById("settings-panel");
+  const apiKeyInput = document.getElementById("api-key-input");
+  const saveKeyBtn = document.getElementById("save-key-btn");
+  const keyStatus = document.getElementById("key-status");
+  const flowInfo = document.getElementById("flow-info");
+
+  flowInfo.textContent = `${LANGFLOW_BASE_URL} · flow ${FLOW_ID.slice(0, 8)}…`;
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[ch]));
+  }
+
+  // ---- API key (localStorage, never hardcoded in this file) ----
+  function getApiKey() {
+    return localStorage.getItem(API_KEY_STORAGE_KEY) || DEFAULT_API_KEY;
+  }
+  function refreshKeyStatus() {
+    keyStatus.textContent = getApiKey() ? "✓ key set" : "no key set";
+  }
+  apiKeyInput.value = "";
+  refreshKeyStatus();
+
+  settingsToggle.addEventListener("click", () => {
+    settingsPanel.classList.toggle("hidden");
+    if (!settingsPanel.classList.contains("hidden")) apiKeyInput.focus();
+  });
+  saveKeyBtn.addEventListener("click", () => {
+    const value = apiKeyInput.value.trim();
+    if (value) localStorage.setItem(API_KEY_STORAGE_KEY, value);
+    else localStorage.removeItem(API_KEY_STORAGE_KEY);
+    apiKeyInput.value = "";
+    refreshKeyStatus();
+  });
+
+  // ---- Chat rendering ----
+  function addBubble(role) {
+    if (emptyState) emptyState.remove();
+    const div = document.createElement("div");
+    div.className = `bubble ${role}`;
+    chatThread.appendChild(div);
+    chatThread.scrollTop = chatThread.scrollHeight;
+    return div;
+  }
+
+  function addThinking() {
+    const div = addBubble("assistant");
+    div.innerHTML = `<div class="thinking"><span></span><span></span><span></span></div>`;
+    return div;
+  }
+
+  // ---- Defensive response parsing ----
+  // Langflow's exact response shape varies slightly by version/flow config,
+  // so try several known paths in order before giving up.
+  function extractAnswer(data) {
+    if (!data || typeof data !== "object") return null;
+    const paths = [
+      (d) => d.outputs?.[0]?.outputs?.[0]?.results?.message?.text,
+      (d) => d.outputs?.[0]?.outputs?.[0]?.results?.message?.data?.text,
+      (d) => d.outputs?.[0]?.outputs?.[0]?.artifacts?.message,
+      (d) => d.outputs?.[0]?.outputs?.[0]?.messages?.[0]?.message,
+      (d) => d.outputs?.[0]?.outputs?.[0]?.results?.text?.text,
+      (d) => d.outputs?.[0]?.outputs?.[0]?.results?.text,
+    ];
+    for (const getPath of paths) {
+      try {
+        const value = getPath(data);
+        if (typeof value === "string" && value.trim().length > 0) return value;
+      } catch {
+        // try the next path
+      }
+    }
+    return null;
+  }
+
+  class LangflowError extends Error {
+    constructor(title, detail, status) {
+      super(title);
+      this.title = title;
+      this.detail = detail;
+      this.status = status;
+    }
+  }
+
+  function buildHeaders() {
+    const headers = { "Content-Type": "application/json" };
+    const key = getApiKey();
+    if (key) headers["x-api-key"] = key;
+    return headers;
+  }
+
+  async function callLangflow(question) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let response;
+    try {
+      response = await fetch(`${LANGFLOW_BASE_URL}/api/v1/run/${FLOW_ID}`, {
+        method: "POST",
+        headers: buildHeaders(),
+        body: JSON.stringify({ input_value: question, output_type: "chat", input_type: "chat" }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err.name === "AbortError") {
+        throw new LangflowError(
+          "Request timed out",
+          `No response within ${REQUEST_TIMEOUT_MS / 1000}s. The flow may be slow, stuck, or Langflow may not be responding.`
+        );
+      }
+      throw new LangflowError(
+        "Could not reach Langflow",
+        `${err.message}\n\nIs Langflow running at ${LANGFLOW_BASE_URL}? If you opened this file directly (file://), try serving it instead: python -m http.server`
+      );
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    const rawText = await response.text();
+    let data = null;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      // leave data as null; we'll fall back to rawText below
+    }
+
+    if (!response.ok) {
+      const hint =
+        response.status === 401 || response.status === 403
+          ? "\n\nThis usually means Langflow needs an API key. Set one via the ⚙ icon above."
+          : "";
+      const detail = (data && (data.detail || JSON.stringify(data, null, 2))) || rawText || `HTTP ${response.status}`;
+      throw new LangflowError(`Langflow returned ${response.status}`, detail + hint, response.status);
+    }
+
+    // Some flow-build failures come back as HTTP 200 with an error-shaped body.
+    if (data && data.detail && !data.outputs) {
+      throw new LangflowError("The flow reported an error", data.detail, response.status);
+    }
+
+    return { data, rawText };
+  }
+
+  function renderError(bubble, err, question) {
+    bubble.classList.remove("assistant");
+    bubble.classList.add("error");
+    const title = err instanceof LangflowError ? err.title : "Something went wrong";
+    const detail = err instanceof LangflowError ? err.detail : String(err.message || err);
+    bubble.innerHTML = `
+      <div class="error-title">${escapeHtml(title)}</div>
+      <pre>${escapeHtml(detail)}</pre>
+      <button class="retry-btn">Retry</button>
+    `;
+    bubble.querySelector(".retry-btn").addEventListener("click", () => {
+      bubble.remove();
+      ask(question);
+    });
+  }
+
+  function renderAnswer(bubble, data, rawText) {
+    const answer = extractAnswer(data);
+    if (answer !== null) {
+      bubble.textContent = answer;
+      return;
+    }
+    bubble.innerHTML = `
+      <div>Got a response, but couldn't find the answer text at any known path.</div>
+      <details class="raw-fallback" open>
+        <summary>Raw response (use this to find the right path)</summary>
+        <pre>${escapeHtml(JSON.stringify(data ?? rawText, null, 2))}</pre>
+      </details>
+    `;
+  }
+
+  let inFlight = false;
+
+  async function ask(question) {
+    if (inFlight) return;
+    inFlight = true;
+    sendBtn.disabled = true;
+
+    addBubble("user").textContent = question;
+    const responseBubble = addThinking();
+
+    try {
+      const { data, rawText } = await callLangflow(question);
+      responseBubble.className = "bubble assistant";
+      renderAnswer(responseBubble, data, rawText);
+    } catch (err) {
+      renderError(responseBubble, err, question);
+    } finally {
+      inFlight = false;
+      sendBtn.disabled = false;
+      chatThread.scrollTop = chatThread.scrollHeight;
+    }
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const question = input.value.trim();
+    if (!question) return;
+    input.value = "";
+    ask(question);
+  });
+})();
+</script>
+</body>
+</html>

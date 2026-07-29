@@ -1,0 +1,22 @@
+# QA terminology map — matched terms are stored on each chunk's payload
+# (payload key: "terms") for filtering and query expansion. Extend freely.
+RTM: Requirements Traceability Matrix
+RCA: Root Cause Analysis
+POM: Page Object Model
+VWO: Visual Website Optimizer
+SUT: System Under Test
+UAT: User Acceptance Testing
+BVT: Build Verification Test
+CI: Continuous Integration
+CD: Continuous Delivery
+E2E: End to End
+API: Application Programming Interface
+PRD: Product Requirements Document
+SRS: Software Requirements Specification
+BRD: Business Requirements Document
+FRD: Functional Requirements Document
+DDT: Data Driven Testing
+BDD: Behavior Driven Development
+TDD: Test Driven Development
+SLA: Service Level Agreement
+QA: Quality Assurance
