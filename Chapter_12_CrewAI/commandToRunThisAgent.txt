@@ -1,0 +1,4 @@
+cd Chapter_12_CrewAI
+..\.venv\Scripts\python.exe 01_test_analyst_Agent.py
+
+give me a command to run this agent with pytest
