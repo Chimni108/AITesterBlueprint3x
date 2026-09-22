@@ -47,7 +47,7 @@ if not api_key:
 # "openai" provider and simply point base_url at Groq. That is why the model id
 # carries two prefixes: "openai/" (the provider) + "openai/gpt-oss-120b" (Groq's model).
 groq_llm = LLM(
-    model=os.getenv("GROQ_MODEL", "openai/openai/gpt-oss-120b"),
+    model=f"openai/{os.getenv('GROQ_MODEL', 'openai/gpt-oss-120b')}",
     api_key=api_key,
     base_url=os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
     temperature=0.7,
